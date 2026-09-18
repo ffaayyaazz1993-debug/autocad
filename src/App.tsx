@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { FloorPlan } from './FloorPlan';
 import { LayerState } from './types';
 
@@ -16,6 +16,11 @@ const initialLayers: LayerState[] = [
 export default function App() {
   const [layers, setLayers] = useState<LayerState[]>(initialLayers);
   const [showPanel, setShowPanel] = useState(true);
+  const [zoom, setZoom] = useState(1);
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const toggleLayer = (name: string) => {
     setLayers((prev) =>
@@ -26,6 +31,48 @@ export default function App() {
   const toggleAll = (visible: boolean) => {
     setLayers((prev) => prev.map((l) => ({ ...l, visible })));
   };
+
+  const handleZoomIn = () => {
+    setZoom((z) => Math.min(z * 1.2, 5));
+  };
+
+  const handleZoomOut = () => {
+    setZoom((z) => Math.max(z / 1.2, 0.3));
+  };
+
+  const handleReset = () => {
+    setZoom(1);
+    setPan({ x: 0, y: 0 });
+  };
+
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = e.deltaY > 0 ? 0.9 : 1.1;
+    setZoom((z) => Math.max(0.3, Math.min(5, z * delta)));
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button === 0) {
+      setIsPanning(true);
+      setStartPan({ x: e.clientX - pan.x, y: e.clientY - pan.y });
+    }
+  };
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (isPanning) {
+      setPan({ x: e.clientX - startPan.x, y: e.clientY - startPan.y });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsPanning(false);
+  };
+
+  useEffect(() => {
+    const handleGlobalMouseUp = () => setIsPanning(false);
+    window.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => window.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
@@ -241,9 +288,68 @@ export default function App() {
         )}
 
         {/* Drawing Area */}
-        <main className="flex-1 overflow-auto p-4 flex items-start justify-center bg-gradient-to-br from-gray-50 to-gray-100">
-          <div className="bg-white shadow-2xl rounded border border-gray-200 p-3 inline-block max-w-full">
-            <FloorPlan layers={layers} />
+        <main 
+          ref={containerRef}
+          className="flex-1 overflow-hidden relative bg-gradient-to-br from-gray-50 to-gray-100"
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
+        >
+          {/* Zoom Controls */}
+          <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border border-gray-200 p-2 flex flex-col gap-2">
+            <button
+              onClick={handleZoomIn}
+              className="w-9 h-9 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded flex items-center justify-center font-bold text-lg transition-colors"
+              title="Zoom In"
+            >
+              +
+            </button>
+            <button
+              onClick={handleZoomOut}
+              className="w-9 h-9 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded flex items-center justify-center font-bold text-lg transition-colors"
+              title="Zoom Out"
+            >
+              −
+            </button>
+            <button
+              onClick={handleReset}
+              className="w-9 h-9 bg-gray-50 hover:bg-gray-100 text-gray-700 rounded flex items-center justify-center transition-colors"
+              title="Reset View"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                <path d="M2 8a6 6 0 0 1 10.5-4M14 8a6 6 0 0 1-10.5 4"/>
+                <path d="M12.5 1v3h-3M3.5 15v-3h3"/>
+              </svg>
+            </button>
+            <div className="text-xs text-center text-gray-600 font-mono pt-1 border-t border-gray-200">
+              {Math.round(zoom * 100)}%
+            </div>
+          </div>
+
+          {/* Instructions */}
+          <div className="absolute bottom-4 left-4 z-10 bg-white/90 backdrop-blur-sm rounded px-3 py-2 text-xs text-gray-600 shadow border border-gray-200">
+            <div className="flex items-center gap-3">
+              <span>🖱️ Scroll to zoom</span>
+              <span>•</span>
+              <span>🖱️ Drag to pan</span>
+            </div>
+          </div>
+
+          {/* Floor Plan Container */}
+          <div 
+            className="w-full h-full flex items-center justify-center p-4"
+            style={{
+              transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+              transformOrigin: 'center center',
+              transition: isPanning ? 'none' : 'transform 0.1s ease-out'
+            }}
+          >
+            <div className="bg-white shadow-2xl rounded border border-gray-200 p-3 inline-block">
+              <FloorPlan layers={layers} />
+            </div>
           </div>
         </main>
       </div>
