@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { FloorPlan } from './FloorPlan';
+import { CodeViewer } from './CodeViewer';
 import { LayerState } from './types';
 
 const initialLayers: LayerState[] = [
@@ -20,6 +21,7 @@ export default function App() {
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+  const [showCode, setShowCode] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const toggleLayer = (name: string) => {
@@ -100,6 +102,13 @@ export default function App() {
               <div>Scale: 1/8" = 1'-0"</div>
               <div>North: Upward</div>
             </div>
+            <button
+              onClick={() => setShowCode(true)}
+              className="bg-blue-600 hover:bg-blue-500 px-3 py-1.5 rounded text-xs font-medium transition-colors border border-blue-500"
+              title="View AutoLISP Code"
+            >
+              📄 AutoLISP Code
+            </button>
             <button
               onClick={() => setShowPanel(!showPanel)}
               className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-xs font-medium transition-colors border border-gray-600"
@@ -361,6 +370,9 @@ export default function App() {
           <span className="hidden sm:inline">Layers: A-WALL-EXT | A-WALL-INT | A-DOOR | A-WINDOW | A-TEXT | A-DIMS | A-FURNITURE | A-NORTH</span>
         </div>
       </footer>
+
+      {/* AutoLISP Code Viewer Modal */}
+      {showCode && <CodeViewer onClose={() => setShowCode(false)} />}
     </div>
   );
 }
